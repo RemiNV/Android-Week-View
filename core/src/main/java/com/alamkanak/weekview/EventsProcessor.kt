@@ -52,8 +52,8 @@ internal class EventsProcessor<T>(
         viewState: ViewState
     ) {
         val events = items.map { it.toResolvedWeekViewEvent(context) }
-        val startDate = events.map { it.startTime.atStartOfDay }.minOrNull()
-        val endDate = events.map { it.endTime.atEndOfDay }.maxOrNull()
+        val startDate = events.map { it.startTime.toLocalDate() }.minOrNull()
+        val endDate = events.map { it.endTime.toLocalDate() }.maxOrNull()
 
         if (startDate == null || endDate == null) {
             // The new items are empty, but it's possible that WeekView is currently displaying

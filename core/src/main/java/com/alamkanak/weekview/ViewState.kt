@@ -5,7 +5,13 @@ import android.graphics.PointF
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.text.TextPaint
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
+import java.time.temporal.WeekFields
 import java.util.Calendar
+import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -20,8 +26,8 @@ internal class ViewState {
     var viewHeight: Int = 0
 
     // Calendar state
-    var firstVisibleDate: Calendar = today()
-    var scrollToDate: Calendar? = null
+    var firstVisibleDate: LocalDate = LocalDate.now()
+    var scrollToDate: LocalDate? = null
     var scrollToHour: Int? = null
 
     private var isFirstDraw: Boolean = true
@@ -29,8 +35,8 @@ internal class ViewState {
     // Drawing context
     private var startPixel: Float = 0f
     val startPixels: MutableList<Float> = mutableListOf()
-    val dateRange: MutableList<Calendar> = mutableListOf()
-    val dateRangeWithStartPixels: MutableList<Pair<Calendar, Float>> = mutableListOf()
+    val dateRange: MutableList<LocalDate> = mutableListOf()
+    val dateRangeWithStartPixels: MutableList<Pair<LocalDate, Float>> = mutableListOf()
 
     // Calendar configuration
     var numberOfVisibleDays: Int = 3
@@ -165,22 +171,22 @@ internal class ViewState {
 
     var newHourHeight: Float = 0f
 
-    var minDate: Calendar? = null
-    var maxDate: Calendar? = null
+    var minDate: LocalDate? = null
+    var maxDate: LocalDate? = null
 
     var dateFormatter: DateFormatter = { date ->
-        defaultDateFormatter(numberOfDays = numberOfVisibleDays).format(date.time)
+        defaultDateFormatter(numberOfDays = numberOfVisibleDays).format(date.toLocalDate())
     }
 
     var timeFormatter: TimeFormatter = { hour ->
-        val date = now().withTime(hour = hour, minutes = 0)
-        defaultTimeFormatter().format(date.time)
+        val date = LocalDateTime.now().withHour(hour).withMinute(0)
+        defaultTimeFormatter().format(date)
     }
 
     val minX: Float
         get() {
             return maxDate?.let {
-                val date = it - Days(numberOfVisibleDays - 1)
+                val date = it.minusDays(numberOfVisibleDays - 1)
                 getXOriginForDate(date)
             } ?: Float.NEGATIVE_INFINITY
         }
@@ -247,15 +253,17 @@ internal class ViewState {
     val displayedHours: IntProgression
         get() = timeRange step timeColumnHoursInterval
 
-    fun getXOriginForDate(date: Calendar): Float {
+    fun getXOriginForDate(date: LocalDate): Float {
         return date.daysFromToday * dayWidth * -1f
     }
 
     private fun scrollToFirstDayOfWeek() {
         // If the week view is being drawn for the first time, consider the first day of the week.
-        val today = today()
+        val today = LocalDate.now()
         val isWeekView = numberOfVisibleDays >= 7
-        val currentDayIsNotToday = today.dayOfWeek != today.firstDayOfWeek
+
+        val firstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek
+        val currentDayIsNotToday = today.dayOfWeek != firstDayOfWeek
 
         if (isWeekView && currentDayIsNotToday) {
             val difference = today.computeDifferenceWithFirstDayOfWeek()
@@ -266,19 +274,19 @@ internal class ViewState {
     }
 
     private fun scrollToCurrentTime() {
-        val desired = now()
-        if (desired.hour > minHour) {
+        val now = LocalDateTime.now()
+        val desired = if (now.hour > minHour) {
             // Add some padding above the current time (and thus: the now line)
-            desired -= Hours(1)
+            now.minusHours(1)
         } else {
-            desired -= Minutes(desired.minute)
+            now.minusMinutes(now.minute)
         }
 
-        desired.hour = min(max(desired.hour, minHour), maxHour)
-        desired.minute = 0
+        val hour = min(max(desired.hour, minHour), maxHour)
+        val actual = desired.withHour(hour).withMinute(0)
 
-        val fraction = desired.minute / 60f
-        val verticalOffset = hourHeight * (desired.hour + fraction)
+        val fraction = actual.minute / 60f
+        val verticalOffset = hourHeight * (actual.hour + fraction)
         val desiredOffset = dayHeight - viewHeight
 
         currentOrigin.y = min(desiredOffset, verticalOffset) * -1
@@ -288,31 +296,28 @@ internal class ViewState {
      * Returns the provided date, if it is within [minDate] and [maxDate]. Otherwise, it returns
      * [minDate] or [maxDate].
      */
-    fun getDateWithinDateRange(date: Calendar): Calendar {
+    fun getDateWithinDateRange(date: LocalDate): LocalDate {
         val minDate = minDate ?: date
         val maxDate = maxDate ?: date
 
         return if (date.isBefore(minDate)) {
             minDate
         } else if (date.isAfter(maxDate)) {
-            maxDate - Days(numberOfVisibleDays - 1)
+            maxDate.minusDays(numberOfVisibleDays - 1)
         } else if (numberOfVisibleDays >= 7 && showFirstDayOfWeekFirst) {
             val diff = date.computeDifferenceWithFirstDayOfWeek()
-            date - Days(diff)
+            date.minusDays(diff)
         } else {
             date
         }
     }
 
-    private fun Calendar.computeDifferenceWithFirstDayOfWeek(): Int {
-        val firstDayOfWeek = firstDayOfWeek
-        return if (firstDayOfWeek == Calendar.MONDAY && dayOfWeek == Calendar.SUNDAY) {
-            // Special case, because Calendar.MONDAY has constant value 2 and Calendar.SUNDAY has
-            // constant value 1. The correct result to return is 6 days, not -1 days.
-            6
-        } else {
-            dayOfWeek - firstDayOfWeek
-        }
+    private fun LocalDate.computeDifferenceWithFirstDayOfWeek(): Int {
+        // val firstDayOfWeek = firstDayOfWeek
+        val firstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek
+        val adjuster = TemporalAdjusters.previousOrSame(firstDayOfWeek)
+        val startOfWeek = with(adjuster)
+        return ChronoUnit.DAYS.between(startOfWeek, this).toInt()
     }
 
     private fun refreshAfterZooming() {
@@ -426,7 +431,7 @@ internal class ViewState {
         val visibleDays = if (isNotScrolling) numberOfVisibleDays else numberOfVisibleDays + 1
 
         dateRange.clear()
-        val startDate = today() + Days(daysFromOrigin)
+        val startDate = LocalDate.now().plusDays(daysFromOrigin)
         val newDateRange = startDate.rangeWithDays(visibleDays)
         dateRange += newDateRange.limitTo(minDate, maxDate)
 

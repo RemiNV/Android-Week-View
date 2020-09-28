@@ -7,7 +7,9 @@ import android.graphics.RectF
 import android.text.StaticLayout
 import android.util.SparseArray
 import androidx.collection.ArrayMap
-import java.util.Calendar
+import java.time.LocalDate
+import java.time.temporal.WeekFields
+import java.util.Locale
 import kotlin.math.roundToInt
 
 internal class HeaderRenderer(
@@ -71,13 +73,13 @@ private class HeaderRowUpdater(
 ) : Updater {
 
     override fun update() {
-        val missingDates = viewState.dateRange.filterNot { labelLayouts.hasKey(it.toEpochDays()) }
+        val missingDates = viewState.dateRange.filterNot { labelLayouts.hasKey(it.toEpochDay().toInt()) }
         for (date in missingDates) {
-            val key = date.toEpochDays()
+            val key = date.toEpochDay().toInt()
             labelLayouts.put(key, calculateStaticLayoutForDate(date))
         }
 
-        val dateLabels = viewState.dateRange.map { labelLayouts[it.toEpochDays()] }
+        val dateLabels = viewState.dateRange.map { labelLayouts[it.toEpochDay().toInt()] }
         updateHeaderHeight(dateLabels)
     }
 
@@ -91,8 +93,8 @@ private class HeaderRowUpdater(
         viewState.refreshHeaderHeight()
     }
 
-    private fun calculateStaticLayoutForDate(date: Calendar): StaticLayout {
-        val dayLabel = viewState.dateFormatter(date)
+    private fun calculateStaticLayoutForDate(date: LocalDate): StaticLayout {
+        val dayLabel = viewState.dateFormatter(date.toCalendar())
         return dayLabel.toTextLayout(
             textPaint = if (date.isToday) viewState.todayHeaderTextPaint else viewState.headerRowTextPaint,
             width = viewState.dayWidth.toInt()
@@ -117,8 +119,8 @@ private class DateLabelsDrawer(
         }
     }
 
-    private fun Canvas.drawLabel(day: Calendar, startPixel: Float) {
-        val key = day.toEpochDays()
+    private fun Canvas.drawLabel(date: LocalDate, startPixel: Float) {
+        val key = date.toEpochDay().toInt()
         val textLayout = dateLabelLayouts[key]
 
         withTranslation(
@@ -232,7 +234,8 @@ private class HeaderRowDrawer(
     }
 
     private fun Canvas.drawWeekNumber(state: ViewState) {
-        val weekNumber = state.dateRange.first().weekOfYear.toString()
+        val weekOfYear = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear()
+        val weekNumber = state.dateRange.first().get(weekOfYear).toString()
 
         val bounds = state.weekNumberBounds
         val textPaint = state.weekNumberTextPaint

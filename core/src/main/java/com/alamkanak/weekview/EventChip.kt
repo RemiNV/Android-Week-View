@@ -28,7 +28,7 @@ internal data class EventChip(
      * A unique ID of this [EventChip].
      */
     val id: String
-        get() = "${event.id}-${this.event.startTime.timeInMillis}"
+        get() = "${event.id}-${this.event.startTime.millis}"
 
     /**
      * The rectangle in which the [ResolvedWeekViewEvent] will be drawn.

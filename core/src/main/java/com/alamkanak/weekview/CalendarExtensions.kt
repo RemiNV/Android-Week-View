@@ -1,200 +1,56 @@
 package com.alamkanak.weekview
 
-import java.text.SimpleDateFormat
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.YearMonth
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
-import kotlin.math.roundToInt
 
-internal const val DAY_IN_MILLIS = 1000L * 60L * 60L * 24L
+internal fun LocalDate.isNotEqual(other: LocalDate) = !isEqual(other)
 
-internal interface Duration {
-    val inMillis: Int
+internal fun LocalDateTime.isNotEqual(other: LocalDateTime) = !isEqual(other)
+
+internal val LocalDateTime.millis: Long
+    get() = atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+internal fun LocalDate.plusDays(days: Int) = plusDays(days.toLong())
+
+internal fun LocalDate.minusDays(days: Int) = minusDays(days.toLong())
+
+internal fun LocalDateTime.minusMinutes(minutes: Int) = minusMinutes(minutes.toLong())
+
+internal val LocalDate.isBeforeToday: Boolean
+    get() = isBefore(LocalDate.now())
+
+internal val LocalDate.isToday: Boolean
+    get() = isEqual(LocalDate.now())
+
+internal fun LocalDateTime.withTimeAtStartOfPeriod(hour: Int): LocalDateTime {
+    return withHour(hour)
+        .withMinute(0)
+        .withSecond(0)
+        .withNano(0)
 }
 
-internal inline class Days(val days: Int) : Duration {
-    override val inMillis: Int
-        get() = days * (24 * 60 * 60 * 1_000)
+internal fun LocalDateTime.withTimeAtEndOfPeriod(hour: Int): LocalDateTime {
+    return withHour(hour - 1)
+        .withMinute(59)
+        .withSecond(59)
+        .withNano(999_999)
 }
 
-internal inline class Hours(val hours: Int) : Duration {
-    override val inMillis: Int
-        get() = hours * (60 * 60 * 1_000)
-}
+internal val LocalDate.daysFromToday: Int
+    get() = ChronoUnit.DAYS.between(LocalDate.now(), this).toInt()
 
-internal inline class Minutes(val minutes: Int) : Duration {
-    override val inMillis: Int
-        get() = minutes * (60 * 1_000)
-}
+internal typealias DateRange = List<LocalDate>
 
-internal inline class Millis(val millis: Int) : Duration {
-    override val inMillis: Int
-        get() = millis
-}
-
-internal var Calendar.hour: Int
-    get() = get(Calendar.HOUR_OF_DAY)
-    set(value) {
-        set(Calendar.HOUR_OF_DAY, value)
-    }
-
-internal var Calendar.minute: Int
-    get() = get(Calendar.MINUTE)
-    set(value) {
-        set(Calendar.MINUTE, value)
-    }
-
-internal val Calendar.dayOfWeek: Int
-    get() = get(Calendar.DAY_OF_WEEK)
-
-internal val Calendar.dayOfMonth: Int
-    get() = get(Calendar.DAY_OF_MONTH)
-
-internal val Calendar.weekOfYear: Int
-    get() = get(Calendar.WEEK_OF_YEAR)
-
-internal val Calendar.month: Int
-    get() = get(Calendar.MONTH)
-
-internal val Calendar.year: Int
-    get() = get(Calendar.YEAR)
-
-internal fun Calendar.isEqual(other: Calendar) = timeInMillis == other.timeInMillis
-
-internal fun Calendar.isNotEqual(other: Calendar) = isEqual(other).not()
-
-internal operator fun Calendar.plus(days: Days): Calendar {
-    return copy().apply {
-        add(Calendar.DATE, days.days)
-    }
-}
-
-internal operator fun Calendar.plusAssign(days: Days) {
-    add(Calendar.DATE, days.days)
-}
-
-internal operator fun Calendar.minus(days: Days): Calendar {
-    return copy().apply {
-        add(Calendar.DATE, days.days * (-1))
-    }
-}
-
-internal operator fun Calendar.minusAssign(days: Days) {
-    add(Calendar.DATE, days.days * (-1))
-}
-
-internal operator fun Calendar.minusAssign(minutes: Minutes) {
-    add(Calendar.MINUTE, minutes.minutes * (-1))
-}
-
-internal operator fun Calendar.plus(hours: Hours): Calendar {
-    return copy().apply {
-        add(Calendar.HOUR_OF_DAY, hours.hours)
-    }
-}
-
-internal operator fun Calendar.plusAssign(hours: Hours) {
-    add(Calendar.HOUR_OF_DAY, hours.hours)
-}
-
-internal operator fun Calendar.minus(hours: Hours): Calendar {
-    return copy().apply {
-        add(Calendar.HOUR_OF_DAY, hours.hours * (-1))
-    }
-}
-
-internal operator fun Calendar.minusAssign(hours: Hours) {
-    add(Calendar.HOUR_OF_DAY, hours.hours * (-1))
-}
-
-internal operator fun Calendar.plus(millis: Millis): Calendar {
-    return copy().apply {
-        add(Calendar.MILLISECOND, millis.millis)
-    }
-}
-
-internal operator fun Calendar.plusAssign(millis: Millis) {
-    add(Calendar.MILLISECOND, millis.millis)
-}
-
-internal operator fun Calendar.minus(millis: Millis): Calendar {
-    return copy().apply {
-        add(Calendar.MILLISECOND, millis.millis * (-1))
-    }
-}
-
-internal operator fun Calendar.minusAssign(millis: Millis) {
-    add(Calendar.MILLISECOND, millis.millis * (-1))
-}
-
-internal fun Calendar.isBefore(other: Calendar) = timeInMillis < other.timeInMillis
-
-internal fun Calendar.isAfter(other: Calendar) = timeInMillis > other.timeInMillis
-
-internal val Calendar.isBeforeToday: Boolean
-    get() = isBefore(today())
-
-internal val Calendar.isToday: Boolean
-    get() = isSameDate(today())
-
-internal fun Calendar.toEpochDays(): Int = (atStartOfDay.timeInMillis / DAY_IN_MILLIS).toInt()
-
-internal val Calendar.lengthOfMonth: Int
-    get() = getActualMaximum(Calendar.DAY_OF_MONTH)
-
-internal fun newDate(year: Int, month: Int, dayOfMonth: Int): Calendar {
-    return today().apply {
-        set(Calendar.DAY_OF_MONTH, dayOfMonth)
-        set(Calendar.MONTH, month)
-        set(Calendar.YEAR, year)
-    }
-}
-
-internal fun Calendar.withTimeAtStartOfPeriod(hour: Int): Calendar {
-    return copy().apply {
-        set(Calendar.HOUR_OF_DAY, hour)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-}
-
-internal fun Calendar.withTimeAtEndOfPeriod(hour: Int): Calendar {
-    return copy().apply {
-        set(Calendar.HOUR_OF_DAY, hour - 1)
-        set(Calendar.MINUTE, 59)
-        set(Calendar.SECOND, 59)
-        set(Calendar.MILLISECOND, 999)
-    }
-}
-
-internal val Calendar.atStartOfDay: Calendar
-    get() = withTimeAtStartOfPeriod(0)
-
-internal val Calendar.atEndOfDay: Calendar
-    get() = withTimeAtEndOfPeriod(24)
-
-internal val Calendar.daysFromToday: Int
-    get() {
-        val diff = (atStartOfDay.timeInMillis - today().timeInMillis).toFloat()
-        return (diff / DAY_IN_MILLIS).roundToInt()
-    }
-
-internal fun today() = now().atStartOfDay
-
-internal fun now() = Calendar.getInstance()
-
-internal fun Calendar.isSameDate(other: Calendar): Boolean = toEpochDays() == other.toEpochDays()
-
-internal fun firstDayOfYear(): Calendar {
-    return today().apply {
-        set(Calendar.MONTH, Calendar.JANUARY)
-        set(Calendar.DAY_OF_MONTH, 1)
-    }
-}
-
-internal typealias DateRange = List<Calendar>
-
-internal fun DateRange.limitTo(minDate: Calendar?, maxDate: Calendar?): List<Calendar> {
+internal fun DateRange.limitTo(minDate: LocalDate?, maxDate: LocalDate?): List<LocalDate> {
     if (minDate == null && maxDate == null) {
         return this
     }
@@ -217,7 +73,7 @@ internal fun DateRange.limitTo(minDate: Calendar?, maxDate: Calendar?): List<Cal
             minDate!!.rangeWithDays(numberOfDays)
         }
         mustAdjustEnd -> {
-            val start = maxDate!! - Days(numberOfDays - 1)
+            val start = maxDate!!.minusDays(numberOfDays - 1)
             start.rangeWithDays(numberOfDays)
         }
         else -> {
@@ -226,53 +82,48 @@ internal fun DateRange.limitTo(minDate: Calendar?, maxDate: Calendar?): List<Cal
     }
 }
 
-internal fun Calendar.rangeWithDays(days: Int) = (0 until days).map { this + Days(it) }
+internal fun LocalDate.rangeWithDays(days: Int) = (0 until days).map { this.plusDays(it) }
 
-internal val Calendar.isWeekend: Boolean
-    get() = dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY
+internal val LocalDate.isWeekend: Boolean
+    get() = dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY
 
-internal fun Calendar.withYear(year: Int): Calendar {
-    return copy().apply { set(Calendar.YEAR, year) }
+internal fun Calendar.toLocalDate(): LocalDate {
+    return Instant.ofEpochMilli(timeInMillis).atZone(ZoneId.systemDefault()).toLocalDate()
 }
 
-internal fun Calendar.withMonth(month: Int): Calendar {
-    return copy().apply { set(Calendar.MONTH, month) }
+internal fun Calendar.toLocalDateTime(): LocalDateTime {
+    return Instant.ofEpochMilli(timeInMillis).atZone(ZoneId.systemDefault()).toLocalDateTime()
 }
 
-internal fun Calendar.withDayOfMonth(day: Int): Calendar {
-    return copy().apply { set(Calendar.DAY_OF_MONTH, day) }
-}
+internal val YearMonth.startDate: LocalDate
+    get() = atDay(1)
 
-internal fun Calendar.withTime(hour: Int, minutes: Int): Calendar {
-    return copy().apply {
-        set(Calendar.HOUR_OF_DAY, hour)
-        set(Calendar.MINUTE, minutes)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-}
+internal val YearMonth.endDate: LocalDate
+    get() = atEndOfMonth()
 
-internal fun Calendar.withHour(hour: Int): Calendar {
-    return copy().apply { set(Calendar.HOUR_OF_DAY, hour) }
-}
+internal val LocalDateTime.yearMonth: YearMonth
+    get() = YearMonth.of(year, month)
 
-internal fun Calendar.withMinutes(minute: Int): Calendar {
-    return copy().apply { set(Calendar.MINUTE, minute) }
-}
+internal fun LocalDate.toCalendar(): Calendar = atStartOfDay().toCalendar()
 
-internal fun Calendar.copy(): Calendar = clone() as Calendar
+internal fun LocalDateTime.toCalendar(): Calendar {
+    val instant = atZone(ZoneId.systemDefault()).toInstant()
+    val calendar = Calendar.getInstance()
+    calendar.time = Date.from(instant)
+    return calendar
+}
 
 /**
  * Checks if this date is at the start of the next day after startTime.
  * For example, if the start date was January the 1st and startDate was January the 2nd at 00:00,
  * this method would return true.
- * @param startDate The start date of the event
+ * @param startDateTime The start date of the event
  * @return Whether or not this date is at the start of the day after startDate
  */
-internal fun Calendar.isAtStartOfNextDay(startDate: Calendar): Boolean {
-    return if (isEqual(atStartOfDay)) {
-        val endOfPreviousDay = this - Millis(1)
-        endOfPreviousDay.isSameDate(startDate)
+internal fun LocalDateTime.isAtStartOfNextDay(startDateTime: LocalDateTime): Boolean {
+    return if (isEqual(this.toLocalDate().atStartOfDay())) {
+        val endOfPreviousDay = this.minusNanos(1)
+        endOfPreviousDay.toLocalDate() == startDateTime.toLocalDate()
     } else {
         false
     }
@@ -280,17 +131,10 @@ internal fun Calendar.isAtStartOfNextDay(startDate: Calendar): Boolean {
 
 internal fun defaultDateFormatter(
     numberOfDays: Int
-): SimpleDateFormat = when (numberOfDays) {
-    1 -> SimpleDateFormat("EEEE M/dd", Locale.getDefault()) // full weekday
-    in 2..6 -> SimpleDateFormat("EEE M/dd", Locale.getDefault()) // first three characters
-    else -> SimpleDateFormat("EEEEE M/dd", Locale.getDefault()) // first character
+): DateTimeFormatter = when (numberOfDays) {
+    1 -> DateTimeFormatter.ofPattern("EEEE M/dd", Locale.getDefault()) // full weekday
+    in 2..6 -> DateTimeFormatter.ofPattern("EEE M/dd", Locale.getDefault()) // first three characters
+    else -> DateTimeFormatter.ofPattern("EEEEE M/dd", Locale.getDefault()) // first character
 }
 
-internal fun defaultTimeFormatter(): SimpleDateFormat = SimpleDateFormat("hh a", Locale.getDefault())
-
-internal fun Calendar.format(
-    format: Int = java.text.DateFormat.MEDIUM
-): String {
-    val sdf = SimpleDateFormat.getDateInstance(format)
-    return sdf.format(time)
-}
+internal fun defaultTimeFormatter(): DateTimeFormatter = DateTimeFormatter.ofPattern("hh a", Locale.getDefault())

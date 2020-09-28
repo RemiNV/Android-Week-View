@@ -1,6 +1,6 @@
 package com.alamkanak.weekview
 
-import java.util.Calendar
+import java.time.LocalDate
 
 internal class EventChipsFactory {
 
@@ -209,7 +209,7 @@ internal class EventChipsFactory {
         return results
     }
 
-    private fun List<EventChip>.groupedByDate(): Map<Calendar, List<EventChip>> {
-        return groupBy { it.event.startTime.atStartOfDay }
+    private fun List<EventChip>.groupedByDate(): Map<LocalDate, List<EventChip>> {
+        return groupBy { it.event.startTime.toLocalDate() }
     }
 }

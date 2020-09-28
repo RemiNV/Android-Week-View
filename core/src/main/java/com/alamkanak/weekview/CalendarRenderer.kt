@@ -5,7 +5,8 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.text.StaticLayout
 import androidx.collection.ArrayMap
-import java.util.Calendar
+import java.time.LocalDate
+import java.time.LocalDateTime
 import kotlin.math.max
 
 internal class CalendarRenderer(
@@ -127,12 +128,12 @@ private class DayBackgroundDrawer(
     /**
      * Draws a day's background color in the corresponding bounds.
      *
-     * @param day The [Calendar] indicating the date
+     * @param day The [LocalDate] indicating the date
      * @param startPixel The x-coordinate on which to start drawing the background
      * @param canvas The [Canvas] on which to draw the background
      */
     private fun drawDayBackground(
-        day: Calendar,
+        day: LocalDate,
         startPixel: Float,
         canvas: Canvas
     ) {
@@ -168,7 +169,7 @@ private class DayBackgroundDrawer(
         height: Float,
         canvas: Canvas
     ) {
-        val now = now()
+        val now = LocalDateTime.now()
         val hour = now.hour - viewState.minHour
         val hourFraction = now.minute / 60f
 
@@ -244,7 +245,7 @@ private class SingleEventsDrawer(
         }
     }
 
-    private fun Canvas.drawEventsForDate(date: Calendar) {
+    private fun Canvas.drawEventsForDate(date: LocalDate) {
         val eventChips = chipsCache.normalEventChipsByDate(date).filterNot { it.bounds.isEmpty }
         for (eventChip in eventChips) {
             val textLayout = eventLabels[eventChip.id] ?: continue
@@ -273,7 +274,7 @@ private class NowLineDrawer(
 
     private fun Canvas.drawLine(startPixel: Float) {
         val top = viewState.headerHeight + viewState.currentOrigin.y
-        val now = now()
+        val now = LocalDateTime.now()
 
         val portionOfDay = (now.hour - viewState.minHour) + now.minute / 60f
         val portionOfDayInPixels = portionOfDay * viewState.hourHeight

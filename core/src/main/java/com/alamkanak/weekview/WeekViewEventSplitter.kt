@@ -1,5 +1,7 @@
 package com.alamkanak.weekview
 
+import java.time.temporal.ChronoUnit
+
 internal fun ResolvedWeekViewEvent<*>.split(viewState: ViewState): List<ResolvedWeekViewEvent<*>> {
     if (startTime >= endTime) {
         return emptyList()
@@ -37,16 +39,15 @@ private fun ResolvedWeekViewEvent<*>.splitEventByDates(
     val lastEvent = copy(startTime = lastEventStart)
     results += lastEvent
 
-    val diff = lastEvent.startTime.timeInMillis - firstEvent.startTime.timeInMillis
-    val daysInBetween = diff / DAY_IN_MILLIS
+    val daysInBetween = ChronoUnit.DAYS.between(firstEvent.startTime.toLocalDate(), lastEvent.startTime.toLocalDate())
 
     if (daysInBetween > 0) {
-        val start = firstEventEnd.withTimeAtStartOfPeriod(viewState.minHour) + Days(1)
-        while (start.isSameDate(lastEventStart).not()) {
+        var start = firstEventEnd.withTimeAtStartOfPeriod(viewState.minHour).plusDays(1)
+        while (start.toLocalDate().isNotEqual(lastEventStart.toLocalDate())) {
             val intermediateStart = start.withTimeAtStartOfPeriod(viewState.minHour)
             val intermediateEnd = start.withTimeAtEndOfPeriod(viewState.maxHour)
             results += copy(startTime = intermediateStart, endTime = intermediateEnd)
-            start += Days(1)
+            start = start.plusDays(1)
         }
     }
 

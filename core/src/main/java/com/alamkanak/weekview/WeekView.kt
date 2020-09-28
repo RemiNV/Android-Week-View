@@ -12,6 +12,9 @@ import android.view.View
 import android.view.accessibility.AccessibilityManager
 import androidx.annotation.RequiresApi
 import androidx.core.view.ViewCompat
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.YearMonth
 import java.util.Calendar
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -79,7 +82,7 @@ class WeekView @JvmOverloads constructor(
         val pendingDateScroll = viewState.scrollToDate
         viewState.scrollToDate = null
         pendingDateScroll?.let { date ->
-            goToDate(date)
+            goToDate(date.toCalendar())
         }
 
         val pendingHourScroll = viewState.scrollToHour
@@ -123,7 +126,7 @@ class WeekView @JvmOverloads constructor(
             viewState.numberOfVisibleDays = savedState.numberOfVisibleDays
         }
 
-        goToDate(savedState.firstVisibleDate)
+        goToDate(savedState.firstVisibleDate.toCalendar())
     }
 
     override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
@@ -137,17 +140,17 @@ class WeekView @JvmOverloads constructor(
         val daysScrolled = viewState.currentOrigin.x / viewState.dayWidth
         val delta = daysScrolled.roundToInt() * (-1)
 
-        val firstVisibleDate = today() + Days(delta)
+        val firstVisibleDate = LocalDate.now().plusDays(delta)
         val visibleDays = viewState.numberOfVisibleDays
 
         val dateRange = firstVisibleDate.rangeWithDays(visibleDays)
         val adjustedDateRange = dateRange.limitTo(viewState.minDate, viewState.maxDate)
         viewState.firstVisibleDate = adjustedDateRange.first()
 
-        val hasFirstVisibleDayChanged = oldFirstVisibleDay.toEpochDays() != firstVisibleDate.toEpochDays()
+        val hasFirstVisibleDayChanged = oldFirstVisibleDay.isNotEqual(firstVisibleDate)
         if (hasFirstVisibleDayChanged && !scroller.isRunning) {
             val lastVisibleDate = adjustedDateRange.last()
-            adapter?.onRangeChanged(firstVisibleDate, lastVisibleDate)
+            adapter?.onRangeChanged(firstVisibleDate.toCalendar(), lastVisibleDate.toCalendar())
         }
     }
 
@@ -953,14 +956,16 @@ class WeekView @JvmOverloads constructor(
      */
     @PublicApi
     var minDate: Calendar?
-        get() = viewState.minDate?.copy()
+        get() = viewState.minDate?.toCalendar()
         set(value) {
             val maxDate = viewState.maxDate
-            if (maxDate != null && value != null && value.isAfter(maxDate)) {
+            val date = value?.toLocalDate()
+
+            if (maxDate != null && date != null && date.isAfter(maxDate)) {
                 throw IllegalArgumentException("Can't set a minDate that's after maxDate")
             }
 
-            viewState.minDate = value
+            viewState.minDate = date
             invalidate()
         }
 
@@ -970,14 +975,16 @@ class WeekView @JvmOverloads constructor(
      */
     @PublicApi
     var maxDate: Calendar?
-        get() = viewState.maxDate?.copy()
+        get() = viewState.maxDate?.toCalendar()
         set(value) {
             val minDate = viewState.minDate
-            if (minDate != null && value != null && value.isBefore(minDate)) {
+            val date = value?.toLocalDate()
+
+            if (minDate != null && date != null && date.isBefore(minDate)) {
                 throw IllegalArgumentException("Can't set a maxDate that's before minDate")
             }
 
-            viewState.maxDate = value
+            viewState.maxDate = date
             invalidate()
         }
 
@@ -1099,21 +1106,21 @@ class WeekView @JvmOverloads constructor(
      */
     @PublicApi
     val firstVisibleDate: Calendar
-        get() = viewState.firstVisibleDate.copy()
+        get() = viewState.firstVisibleDate.toCalendar()
 
     /**
      * Returns the last visible date.
      */
     @PublicApi
     val lastVisibleDate: Calendar
-        get() = viewState.firstVisibleDate.copy() + Days(viewState.numberOfVisibleDays - 1)
+        get() = viewState.firstVisibleDate.plusDays(viewState.numberOfVisibleDays - 1).toCalendar()
 
     /**
      * Shows the current date.
      */
     @PublicApi
     fun goToToday() {
-        goToDate(today())
+        goToDate(LocalDate.now().toCalendar())
     }
 
     /**
@@ -1121,8 +1128,8 @@ class WeekView @JvmOverloads constructor(
      */
     @PublicApi
     fun goToCurrentTime() {
-        now().apply {
-            goToDate(this)
+        LocalDateTime.now().apply {
+            goToDate(this.toCalendar())
             goToHour(hour)
         }
     }
@@ -1135,8 +1142,8 @@ class WeekView @JvmOverloads constructor(
      */
     @PublicApi
     fun goToDate(date: Calendar) {
-        val adjustedDate = viewState.getDateWithinDateRange(date)
-        if (adjustedDate.toEpochDays() == viewState.firstVisibleDate.toEpochDays()) {
+        val adjustedDate = viewState.getDateWithinDateRange(date.toLocalDate())
+        if (adjustedDate.isEqual(viewState.firstVisibleDate)) {
             return
         }
 
@@ -1150,7 +1157,7 @@ class WeekView @JvmOverloads constructor(
             return
         }
 
-        val destinationOffset = viewState.getXOriginForDate(date)
+        val destinationOffset = viewState.getXOriginForDate(date.toLocalDate())
         val adjustedDestinationOffset = destinationOffset.limit(
             minValue = viewState.minX,
             maxValue = viewState.maxX
@@ -1164,10 +1171,10 @@ class WeekView @JvmOverloads constructor(
                 invalidate()
             },
             onEnd = {
-                val lastVisibleDate = adjustedDate + Days(numberOfVisibleDays - 1)
+                val lastVisibleDate = adjustedDate.plusDays(numberOfVisibleDays - 1)
                 adapter?.onRangeChanged(
-                    firstVisibleDate = adjustedDate,
-                    lastVisibleDate = lastVisibleDate
+                    firstVisibleDate = adjustedDate.toCalendar(),
+                    lastVisibleDate = lastVisibleDate.toCalendar()
                 )
             }
         )
@@ -1545,7 +1552,7 @@ class WeekView @JvmOverloads constructor(
             }
         }
 
-        private fun fetchPeriods(periods: List<Period>) {
+        private fun fetchPeriods(periods: List<YearMonth>) {
             val grouped = periods.groupConsecutivePeriods()
 
             for (period in periods) {
@@ -1556,15 +1563,15 @@ class WeekView @JvmOverloads constructor(
             for (group in grouped) {
                 val first = group.first()
                 val last = group.last()
-                onLoadMore(first.startDate, last.endDate)
+                onLoadMore(first.startDate.toCalendar(), last.endDate.toCalendar())
             }
         }
 
-        private fun List<Period>.groupConsecutivePeriods(): List<List<Period>> {
-            val emptyList = mutableListOf<MutableList<Period>>()
+        private fun List<YearMonth>.groupConsecutivePeriods(): List<List<YearMonth>> {
+            val emptyList = mutableListOf<MutableList<YearMonth>>()
             return fold(emptyList) { accumulator, period ->
                 val lastPeriodInList = accumulator.lastOrNull()?.last()
-                val isConsecutive = lastPeriodInList?.next == period
+                val isConsecutive = lastPeriodInList?.plusMonths(1) == period
                 if (accumulator.isEmpty() || !isConsecutive) {
                     accumulator.add(mutableListOf(period))
                 } else {

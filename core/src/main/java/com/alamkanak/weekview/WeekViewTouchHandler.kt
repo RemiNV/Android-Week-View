@@ -1,6 +1,8 @@
 package com.alamkanak.weekview
 
-import java.util.Calendar
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import kotlin.math.ceil
 import kotlin.math.max
 
@@ -19,7 +21,7 @@ internal class WeekViewTouchHandler(
         val handled = adapter?.handleClick(x, y) ?: false
         if (!handled && y > viewState.headerHeight) {
             val time = calculateTimeFromPoint(x, y) ?: return
-            adapter?.handleEmptyViewClick(time)
+            adapter?.handleEmptyViewClick(time.toCalendar())
         }
     }
 
@@ -40,12 +42,12 @@ internal class WeekViewTouchHandler(
      *
      * @param touchX The x coordinate of the touch event.
      * @param touchY The y coordinate of the touch event.
-     * @return The [Calendar] of the clicked position, or null if none was found.
+     * @return The [LocalDateTime] of the clicked position, or null if none was found.
      */
     internal fun calculateTimeFromPoint(
         touchX: Float,
         touchY: Float
-    ): Calendar? {
+    ): LocalDateTime? {
         val totalDayWidth = viewState.dayWidth
         val originX = viewState.currentOrigin.x
         val timeColumnWidth = viewState.timeColumnWidth
@@ -65,7 +67,7 @@ internal class WeekViewTouchHandler(
             val isWithinDay = touchX in start..end
 
             if (isVisibleHorizontally && isWithinDay) {
-                val day = now() + Days(dayNumber - 1)
+                val day = LocalDate.now().plusDays(dayNumber - 1)
 
                 val hourHeight = viewState.hourHeight
                 val pixelsFromMidnight = touchY - viewState.currentOrigin.y - viewState.headerHeight
@@ -74,7 +76,11 @@ internal class WeekViewTouchHandler(
                 val pixelsFromFullHour = pixelsFromMidnight - hour * hourHeight
                 val minutes = ((pixelsFromFullHour / hourHeight) * 60).toInt()
 
-                return day.withTime(viewState.minHour + hour, minutes)
+                return day
+                    .atStartOfDay()
+                    .withHour(viewState.minHour + hour)
+                    .withMinute(minutes)
+                    .truncatedTo(ChronoUnit.MINUTES)
             }
 
             startPixel += totalDayWidth
