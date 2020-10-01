@@ -10,14 +10,22 @@ internal class EventChipBoundsCalculator(
         eventChip: EventChip,
         startPixel: Float
     ): RectF {
-        val drawableWidth = viewState.drawableDayWidth
+        val drawableWidth = when (eventChip.event) {
+            is ResolvedWeekViewEntity.Event<*> -> viewState.drawableDayWidth
+            is ResolvedWeekViewEntity.BlockedTime -> viewState.dayWidth
+        }
+
         val leftOffset = if (viewState.isLtr) 0 else viewState.columnGap
 
         val minutesFromStart = eventChip.minutesFromStartHour
         val top = calculateDistanceFromTop(minutesFromStart)
 
         val bottomMinutesFromStart = minutesFromStart + eventChip.event.durationInMinutes
-        val bottom = calculateDistanceFromTop(bottomMinutesFromStart) - viewState.eventMarginVertical
+        val bottomInset = when (eventChip.event) {
+            is ResolvedWeekViewEntity.Event<*> -> viewState.eventMarginVertical
+            is ResolvedWeekViewEntity.BlockedTime -> 0
+        }
+        val bottom = calculateDistanceFromTop(bottomMinutesFromStart) - bottomInset
 
         var left = startPixel + leftOffset + eventChip.relativeStart * drawableWidth
         var right = left + eventChip.relativeWidth * drawableWidth
