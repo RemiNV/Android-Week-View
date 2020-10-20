@@ -1,7 +1,10 @@
-group = 'com.github.thellmund.Android-Week-View'
+group='com.github.thellmund.Android-Week-View'
 version = '5.2.2'
 
-apply plugin: 'com.github.dcendents.android-maven'
+buildscript {
+    apply from: '../dependencies.gradle'
+}
+
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
@@ -18,7 +21,7 @@ android {
 }
 
 dependencies {
-    implementation project(':core')
+    implementation project(':weekview-core')
 
     implementation libraries.kotlin
     implementation libraries.appCompat

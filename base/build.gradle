@@ -1,9 +1,12 @@
 group = 'com.github.thellmund.Android-Week-View'
 version = '5.2.2'
 
-apply plugin: 'com.github.dcendents.android-maven'
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
+
+buildscript {
+    apply from: '../dependencies.gradle'
+}
 
 android {
     compileSdkVersion buildConfig.compileSdk
