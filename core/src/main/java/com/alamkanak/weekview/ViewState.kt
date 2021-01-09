@@ -31,18 +31,20 @@ internal class ViewState : WeekView.DrawBounds {
 
     private var isFirstDraw: Boolean = true
 
-    // Drawing context
-    private var startPixel: Float = 0f
-    val startPixels: MutableList<Float> = mutableListOf()
-    val dateRange: MutableList<Calendar> = mutableListOf()
-    val dateRangeWithStartPixels: MutableList<Pair<Calendar, Float>> = mutableListOf()
-
     // Calendar configuration
     var numberOfVisibleDays: Int = 3
     var restoreNumberOfVisibleDays: Boolean = true
     var showFirstDayOfWeekFirst: Boolean = false
     var showCurrentTimeFirst: Boolean = false
     var arrangeAllDayEventsVertically: Boolean = true
+
+    // Drawing context
+    private var startPixel: Float = 0f
+    val startPixels: MutableList<Float> = mutableListOf()
+    val dateRange: MutableList<Calendar> = mutableListOf<Calendar>().apply {
+        addAll(createDateRange(firstVisibleDate).validate(this@ViewState))
+    }
+    val dateRangeWithStartPixels: MutableList<Pair<Calendar, Float>> = mutableListOf()
 
     // Time column
     var timeColumnPadding: Int = 0
