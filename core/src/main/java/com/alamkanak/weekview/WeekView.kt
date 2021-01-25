@@ -186,7 +186,7 @@ class WeekView @JvmOverloads constructor(
         val didFirstVisibleDateChange = !currentFirstVisibleDate.isSameDate(newFirstVisibleDate)
         viewState.firstVisibleDate = newFirstVisibleDate
 
-        if (didFirstVisibleDateChange && navigator.isNotRunning) {
+        if (didFirstVisibleDateChange) {
             val newLastVisibleDate = newDateRange.last()
             adapter?.onRangeChanged(
                 firstVisibleDate = newFirstVisibleDate,
