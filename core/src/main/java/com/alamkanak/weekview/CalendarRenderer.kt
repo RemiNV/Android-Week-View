@@ -3,7 +3,6 @@ package com.alamkanak.weekview
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import android.text.StaticLayout
 import androidx.collection.ArrayMap
 import com.alamkanak.weekview.WeekView.DrawBase
 import java.util.Calendar
@@ -15,7 +14,7 @@ internal class CalendarRenderer(
     eventChipsCacheProvider: EventChipsCacheProvider
 ) : Renderer {
 
-    private val singleEventLabels = ArrayMap<String, StaticLayout>()
+    private val singleEventLabels = ArrayMap<String, EventLabel>()
     private val eventsUpdater = SingleEventsUpdater(viewState, eventChipsCacheProvider, singleEventLabels)
 
     // Be careful when changing the order of the drawers, as that might cause
@@ -51,7 +50,7 @@ internal class CalendarRenderer(
 private class SingleEventsUpdater(
     private val viewState: ViewState,
     private val chipsCacheProvider: EventChipsCacheProvider,
-    private val eventLabels: ArrayMap<String, StaticLayout>
+    private val eventLabels: ArrayMap<String, EventLabel>
 ) : Updater {
 
     private val boundsCalculator = EventChipBoundsCalculator(viewState)
@@ -101,15 +100,12 @@ private class SingleEventsUpdater(
                 continue
             }
 
-            val isNotCached = eventChip.id !in eventLabels
-            val didAvailableAreaChange = eventChip.didAvailableAreaChange(
-                availableWidth = availableWidth,
-                availableHeight = availableHeight
-            )
-
-            if (isNotCached || didAvailableAreaChange) {
-                eventLabels[eventChip.id] = textFitter.fit(eventChip = eventChip)
-                eventChip.updateAvailableArea(availableWidth, availableHeight)
+            val label = eventLabels[eventChip.id]
+            if (label == null) {
+                eventLabels[eventChip.id] = EventLabel(availableWidth, availableHeight, eventChip,
+                        textFitter)
+            } else {
+                label.calculateLayout(availableWidth, availableHeight, eventChip, textFitter)
             }
         }
     }
@@ -230,7 +226,7 @@ private class BackgroundGridDrawer(
 private class SingleEventsDrawer(
     private val viewState: ViewState,
     private val chipsCacheProvider: EventChipsCacheProvider,
-    private val eventLabels: ArrayMap<String, StaticLayout>
+    private val eventLabels: ArrayMap<String, EventLabel>
 ) : WeekView.Drawer {
     override val base = DrawBase.EVENTS
 
@@ -249,7 +245,7 @@ private class SingleEventsDrawer(
         val validEventChips = eventChips.filterNot { it.bounds.isEmpty }
 
         for (eventChip in validEventChips) {
-            val textLayout = eventLabels[eventChip.id]
+            val textLayout = eventLabels[eventChip.id]?.layout
             eventChipDrawer.draw(eventChip, canvas = this, textLayout)
         }
     }
